@@ -1,18 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
 /* eslint-disable no-prototype-builtins */
-import { type ClassValue, clsx } from "clsx";
-import qs from "qs";
+import { clsx } from "clsx";
+import qs from 'qs';
 import { twMerge } from "tailwind-merge";
 
 import { aspectRatioOptions } from "@/constants";
+
+type ClassValue = string | string[] | Record<string, boolean>;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 // ERROR HANDLER
-export const handleError = (error: unknown) => {
+export const handleError = (error: Error | string | unknown) => {
   if (error instanceof Error) {
     // This is a native JavaScript error (e.g., TypeError, RangeError)
     console.error(error.message);
@@ -43,7 +45,7 @@ const shimmer = (w: number, h: number) => `
   <animate xlink:href="#r" attributeName="x" from="-${w}" to="${w}" dur="1s" repeatCount="indefinite"  />
 </svg>`;
 
-const toBase64 = (str: string) =>
+const toBase64 = (str: string): string =>
   typeof window === "undefined"
     ? Buffer.from(str).toString("base64")
     : window.btoa(str);
@@ -51,15 +53,20 @@ const toBase64 = (str: string) =>
 export const dataUrl = `data:image/svg+xml;base64,${toBase64(
   shimmer(1000, 1000)
 )}`;
-// ==== End
 
 // FORM URL QUERY
+type FormUrlQueryParams = {
+  searchParams: URLSearchParams,
+  key: string,
+  value: string,
+};
+
 export const formUrlQuery = ({
   searchParams,
   key,
   value,
-}: FormUrlQueryParams) => {
-  const params = { ...qs.parse(searchParams.toString()), [key]: value };
+}: FormUrlQueryParams): string => {
+  const params = { ...Object.fromEntries(searchParams), [key]: value };
 
   return `${window.location.pathname}?${qs.stringify(params, {
     skipNulls: true,
@@ -67,11 +74,16 @@ export const formUrlQuery = ({
 };
 
 // REMOVE KEY FROM QUERY
+type RemoveUrlQueryParams = {
+  searchParams: URLSearchParams,
+  keysToRemove: string[],
+};
+
 export function removeKeysFromQuery({
   searchParams,
   keysToRemove,
-}: RemoveUrlQueryParams) {
-  const currentUrl = qs.parse(searchParams);
+}: RemoveUrlQueryParams): string {
+  const currentUrl = Object.fromEntries(searchParams);
 
   keysToRemove.forEach((key) => {
     delete currentUrl[key];
@@ -86,24 +98,32 @@ export function removeKeysFromQuery({
 }
 
 // DEBOUNCE
-export const debounce = (func: (...args: any[]) => void, delay: number) => {
+export const debounce = <F extends (...args: any[]) => void>(
+  func: F,
+  delay: number
+): ((...args: Parameters<F>) => void) => {
   let timeoutId: NodeJS.Timeout | null;
-  return (...args: any[]) => {
+  return (...args: Parameters<F>) => {
     if (timeoutId) clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func.apply(null, args), delay);
+    timeoutId = setTimeout(() => func(...args), delay);
   };
 };
 
-// GE IMAGE SIZE
-export type AspectRatioKey = keyof typeof aspectRatioOptions;
+// GET IMAGE SIZE
+type Image = {
+  aspectRatio?: keyof typeof aspectRatioOptions,
+  width?: number,
+  height?: number,
+};
+
 export const getImageSize = (
-  type: string,
-  image: any,
+  type: "fill" | "other",
+  image: Image,
   dimension: "width" | "height"
 ): number => {
   if (type === "fill") {
     return (
-      aspectRatioOptions[image.aspectRatio as AspectRatioKey]?.[dimension] ||
+      aspectRatioOptions[image.aspectRatio as keyof typeof aspectRatioOptions]?.[dimension] ||
       1000
     );
   }
@@ -128,11 +148,11 @@ export const download = (url: string, filename: string) => {
       document.body.appendChild(a);
       a.click();
     })
-    .catch((error) => console.log({ error }));
+    .catch((error) => console.error("Download failed:", error));
 };
 
 // DEEP MERGE OBJECTS
-export const deepMergeObjects = (obj1: any, obj2: any) => {
+export const deepMergeObjects = (obj1: any, obj2: any): any => {
   if (obj2 === null || obj2 === undefined) {
     return obj1;
   }
